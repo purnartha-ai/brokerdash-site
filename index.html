@@ -1245,7 +1245,7 @@
     }
 
     // ---------------- INIT ----------------
-    Papa.parse("dashboard_data.csv", {
+    Papa.parse("dashboard_data.csv?v=" + new Date().getTime(), {
       download: true,
       header: true,
       dynamicTyping: true,
@@ -1269,4 +1269,5 @@
   </script>
 </body>
 </html>
+
 
