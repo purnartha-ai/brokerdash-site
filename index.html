@@ -4,148 +4,277 @@
   <meta charset="UTF-8" />
   <title>Broker Consensus Dashboard</title>
 
-  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: radial-gradient(circle at top, #0b1025 0%, #040716 60%);
+      color: #ffffff;
+    }
+
+    header {
+      padding: 28px 40px 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      opacity: 0.8;
+    }
+
+    .filters {
+      display: flex;
+      gap: 16px;
+      margin-top: 22px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    select {
+      background: #0b122e;
+      color: white;
+      border: 1px solid #2a3566;
+      padding: 6px 10px;
+      border-radius: 4px;
+      min-width: 130px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 22px;
+      margin-top: 22px;
+      border-bottom: 1px solid #243063;
+      padding-bottom: 8px;
+    }
+
+    .tab {
+      cursor: pointer;
+      padding-bottom: 6px;
+      opacity: 0.7;
+    }
+
+    .tab.active {
+      opacity: 1;
+      color: #3ff3b2;
+      border-bottom: 2px solid #3ff3b2;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #1f2a55;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      text-align: right;
+      font-weight: 600;
+      color: #9bb1ff;
+    }
+
+    td:first-child, th:first-child {
+      text-align: left;
+    }
+
+    .container {
+      padding: 0 40px 40px;
+    }
+  </style>
 </head>
 
-<body class="bg-slate-950 text-slate-50 min-h-screen">
-<div class="max-w-7xl mx-auto px-4 py-6">
+<body>
 
-<header class="mb-4 flex justify-between items-center">
-  <div>
-    <h1 class="text-4xl font-semibold">Broker Consensus Dashboard</h1>
-    <p class="text-slate-300">Compare companies on Growth, Valuation, Margin Expansion and GSM.</p>
+<header>
+  <h1>Broker Consensus Dashboard</h1>
+  <div class="subtitle">
+    Compare companies on Growth, Valuation, Margin Expansion and GSM.
   </div>
-  <img src="https://purnartha-ai.github.io/brokerdash-site/White Purnartha logo-01.png" class="h-20">
+
+  <div class="filters">
+    <label>Sector:
+      <select id="sector-select"></select>
+    </label>
+
+    <label>Sub-Sector:
+      <select id="subsector-select"></select>
+    </label>
+
+    <label>Market Cap:
+      <select id="marketcap-select"></select>
+    </label>
+
+    <label>Period:
+      <select id="period-select">
+        <option value="FY1">FY1</option>
+        <option value="FY2">FY2</option>
+        <option value="FY3">FY3</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="growth">Growth</div>
+    <div class="tab" data-tab="valuation">Valuation</div>
+    <div class="tab" data-tab="margin">Margin Expansion</div>
+    <div class="tab" data-tab="gsm">GSM</div>
+  </div>
 </header>
 
-<!-- FILTER BAR -->
-<div class="flex flex-wrap gap-4 text-sm mb-4">
-
-  <div>
-    Sector:
-    <select id="sector-select" class="bg-slate-900 border px-2 py-1"></select>
-  </div>
-
-  <div>
-    Sub-Sector:
-    <select id="subsector-select" class="bg-slate-900 border px-2 py-1"></select>
-  </div>
-
-  <div>
-    Market Cap:
-    <select id="marketcap-select" class="bg-slate-900 border px-2 py-1"></select>
-  </div>
-
-  <div>
-    Period:
-    <select id="period-select" class="bg-slate-900 border px-2 py-1">
-      <option value="FY1">FY1</option>
-      <option value="FY2">FY2</option>
-      <option value="FY3">FY3</option>
-      <option value="3Y">3-Year</option>
-    </select>
-  </div>
-
-  <button id="download-excel"
-    class="ml-auto bg-emerald-600 px-3 py-1 rounded">
-    Download Excel
-  </button>
-</div>
-
-<!-- TABS -->
-<div class="border-b border-slate-700 mb-4">
-  <button class="tab-btn text-emerald-400 mr-4" data-tab="growth">Growth</button>
-  <button class="tab-btn mr-4" data-tab="valuation">Valuation</button>
-  <button class="tab-btn mr-4" data-tab="margin">Margin Expansion</button>
-  <button class="tab-btn" data-tab="gsm">GSM</button>
-</div>
-
-<div id="tab-growth"></div>
-<div id="tab-valuation" class="hidden"></div>
-<div id="tab-margin" class="hidden"></div>
-<div id="tab-gsm" class="hidden"></div>
-
+<div class="container">
+  <div id="table-container"></div>
 </div>
 
 <script>
 let allRows = [];
-let currentTab = "growth";
+let activeTab = "growth";
 
-/* ---------- CASCADING FILTER CORE ---------- */
-
-function getFilteredRows() {
-  const sector = sectorSelect.value;
-  const sub = subsectorSelect.value;
-  const mc = marketcapSelect.value;
-
-  return allRows.filter(r => {
-    if (sector !== "All" && r.Sector !== sector) return false;
-    if (sub !== "All" && r["Sub-Sector"] !== sub) return false;
-    if (mc !== "All" && r["Market_Cap"] !== mc) return false;
-    return true;
-  });
-}
-
-/* ---------- INIT ---------- */
-
+/* ===============================
+   CSV LOAD
+================================ */
 Papa.parse("dashboard_data.csv?v=" + Date.now(), {
   download: true,
   header: true,
   dynamicTyping: true,
-  complete: res => {
+  complete: function (res) {
     allRows = res.data.filter(r => r.Company);
-
     initFilters();
-    setupFilterEvents();
+    initTabs();
     renderAll();
   }
 });
 
+/* ===============================
+   FILTER INITIALISATION
+================================ */
 function initFilters() {
-  const sectors = [...new Set(allRows.map(r => r.Sector))].filter(Boolean).sort();
-  sectorSelect.innerHTML = `<option>All</option>` + sectors.map(s => `<option>${s}</option>`).join("");
+  const sectorSel = document.getElementById("sector-select");
+  const subSel = document.getElementById("subsector-select");
+  const capSel = document.getElementById("marketcap-select");
 
-  updateSubsector();
-  updateMarketCap();
+  const sectors = [...new Set(allRows.map(r => r.Sector))].filter(Boolean).sort();
+  sectorSel.innerHTML =
+    `<option value="All">All</option>` +
+    sectors.map(s => `<option value="${s}">${s}</option>`).join("");
+
+  capSel.innerHTML = `
+    <option value="All">All</option>
+    <option value="Large Cap">Large Cap</option>
+    <option value="Mid Cap">Mid Cap</option>
+    <option value="Small Cap">Small Cap</option>
+  `;
+
+  updateSubSector();
+
+  sectorSel.addEventListener("change", () => {
+    updateSubSector();
+    renderAll();
+  });
+
+  subSel.addEventListener("change", renderAll);
+  capSel.addEventListener("change", renderAll);
+  document.getElementById("period-select").addEventListener("change", renderAll);
 }
 
-function updateSubsector() {
-  const sector = sectorSelect.value;
-  const subs = [...new Set(allRows
-    .filter(r => sector === "All" || r.Sector === sector)
-    .map(r => r["Sub-Sector"])
+function updateSubSector() {
+  const sector = document.getElementById("sector-select").value;
+  const subSel = document.getElementById("subsector-select");
+
+  const subs = [...new Set(
+    allRows
+      .filter(r => sector === "All" || r.Sector === sector)
+      .map(r => r.Sub_Sector)
   )].filter(Boolean).sort();
 
-  subsectorSelect.innerHTML = `<option>All</option>` + subs.map(s => `<option>${s}</option>`).join("");
+  subSel.innerHTML =
+    `<option value="All">All</option>` +
+    subs.map(s => `<option value="${s}">${s}</option>`).join("");
 }
 
-function updateMarketCap() {
-  const caps = [...new Set(allRows.map(r => r["Market_Cap"]))].filter(Boolean).sort();
-  marketcapSelect.innerHTML = `<option>All</option>` + caps.map(c => `<option>${c}</option>`).join("");
+/* ===============================
+   FILTERED DATA
+================================ */
+function getFilteredRows() {
+  const sector = document.getElementById("sector-select").value;
+  const sub = document.getElementById("subsector-select").value;
+  const cap = document.getElementById("marketcap-select").value;
+
+  return allRows.filter(r => {
+    if (sector !== "All" && r.Sector !== sector) return false;
+    if (sub !== "All" && r.Sub_Sector !== sub) return false;
+    if (cap !== "All" && r.Market_Cap !== cap) return false;
+    return true;
+  });
 }
 
-function setupFilterEvents() {
-  sectorSelect.onchange = () => {
-    updateSubsector();
-    renderAll();
-  };
-  subsectorSelect.onchange = renderAll;
-  marketcapSelect.onchange = renderAll;
-  periodSelect.onchange = renderAll;
+/* ===============================
+   TABS
+================================ */
+function initTabs() {
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+      activeTab = t.dataset.tab;
+      renderAll();
+    });
+  });
 }
 
-/* ---------- EXISTING RENDER PIPELINE (UNCHANGED) ---------- */
-
+/* ===============================
+   RENDER
+================================ */
 function renderAll() {
   const rows = getFilteredRows();
-  console.log("Rows after filter:", rows.length);
-  // Your existing renderGrowth / renderValuation / renderMargin / renderGsm remain untouched
+  const period = document.getElementById("period-select").value;
+  const el = document.getElementById("table-container");
+
+  if (rows.length === 0) {
+    el.innerHTML = "<p>No data for selected filters.</p>";
+    return;
+  }
+
+  let cols = ["Company"];
+
+  if (activeTab === "growth") {
+    cols.push(`Rev_G_${period}`, `EPS_G_${period}`, `EBITDA_G_${period}`);
+  } else if (activeTab === "valuation") {
+    cols.push(`PE_${period}`, `PB_${period}`, `PS_${period}`);
+  } else if (activeTab === "margin") {
+    cols.push(`EBITDA_MExp_${period}`, `PAT_MExp_${period}`);
+  } else {
+    cols.push("PE_Avg3", "Rev_G_CAGR3", "EBITDA_G_CAGR3");
+  }
+
+  let html = "<table><thead><tr>";
+  cols.forEach(c => html += `<th>${c}</th>`);
+  html += "</tr></thead><tbody>";
+
+  rows.forEach(r => {
+    html += "<tr>";
+    cols.forEach(c => {
+      html += `<td>${r[c] ?? ""}</td>`;
+    });
+    html += "</tr>";
+  });
+
+  html += "</tbody></table>";
+  el.innerHTML = html;
 }
-
-document.getElementById("download-excel").onclick = () => XLSX.writeFile(XLSX.utils.book_new(), "Broker_Consensus.xlsx");
-
 </script>
+
 </body>
 </html>
