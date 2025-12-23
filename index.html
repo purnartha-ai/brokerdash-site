@@ -527,121 +527,215 @@
     </div>
   </div>
 
-  <!-- ================= JS ================= -->
-<script>
-let allRows = [];
-let currentTab = "growth";
+<!-- ===================================================== -->
+<!-- JS LOGIC -->
+<!-- ===================================================== -->
+  
+  <script>
+  let allRows = [];
+  let currentTab = "growth";
 
-/* ================= PERIOD HANDLING ================= */
-function getPeriodSuffix(tab, period) {
-  if (period === "2Y") {
-    return tab === "valuation" ? "Avg2" : "CAGR2";
+  const CONFIG = {
+    growth: {
+      revenue: { base: "Rev_G_", label: "Revenue Growth" },
+      ebitda: { base: "EBITDA_G_", label: "EBITDA Growth" },
+      eps: { base: "EPS_G_", label: "EPS Growth" },
+    },
+    valuation: {
+      pe: { base: "PE_", label: "PE" },
+      pb: { base: "PB_", label: "PB" },
+      ps: { base: "PS_", label: "PS" },
+    },
+    margin: {
+      ebitda: { base: "EBITDA_MExp_", label: "EBITDA Margin Exp." },
+      pat: { base: "PAT_MExp_", label: "PAT Margin Exp." },
+    },
+  };
+
+  function getPeriodSuffix(tab, periodKey) {
+    if (periodKey === "3Y") {
+      return tab === "valuation" ? "Avg3" : "CAGR3";
+    }
+    return periodKey;
   }
-  if (period === "3Y") {
-    return tab === "valuation" ? "Avg3" : "CAGR3";
+
+  function updatePeriodLabel() {
+    const periodSelect = document.getElementById("period-select");
+    const help = document.getElementById("period-help");
+    if (!periodSelect || !help) return;
+
+    const option3Y = periodSelect.querySelector('option[value="3Y"]');
+    if (!option3Y) return;
+
+    periodSelect.querySelectorAll("option").forEach(o => o.disabled = false);
+
+    if (currentTab === "growth" || currentTab === "margin") {
+      option3Y.textContent = "3-Year CAGR";
+    } else if (currentTab === "valuation") {
+      option3Y.textContent = "3-Year Avg";
+    } else {
+      option3Y.textContent = "3-Year";
+    }
+
+    if (currentTab === "gsm" && periodSelect.value === "3Y") {
+      help.textContent =
+        "Note: For 3-Year period we calculate CAGR for Revenue & EPS and Average for PE.";
+    } else {
+      help.textContent = "";
+    }
   }
-  return period;
-}
 
-function updatePeriodLabel() {
-  const sel = document.getElementById("period-select");
-  const help = document.getElementById("period-help");
-  if (!sel || !help) return;
-
-  if (sel.value === "2Y") {
-    help.textContent =
-      currentTab === "valuation"
-        ? "2-Year Average"
-        : "2-Year CAGR";
-  } else if (sel.value === "3Y") {
-    help.textContent =
-      currentTab === "valuation"
-        ? "3-Year Average"
-        : "3-Year CAGR";
-  } else {
-    help.textContent = "";
+  function passComparator(value, op, threshold) {
+    if (value == null || isNaN(value)) return false;
+    switch (op) {
+      case ">":  return value > threshold;
+      case ">=": return value >= threshold;
+      case "<":  return value < threshold;
+      case "<=": return value <= threshold;
+      default:   return true;
+    }
   }
-}
 
-/* ================= FILTERING ================= */
-function getFilteredRows() {
-  const sector = document.getElementById("sector-select").value;
-  const sub = document.getElementById("sub-sector-select").value;
-  const mcap = document.getElementById("market-cap-select").value;
+  const fmtPct = v => (v == null || isNaN(v)) ? "" : v.toFixed(1) + "%";
+  const fmtNum = v => (v == null || isNaN(v)) ? "" : v.toFixed(1);
 
-  return allRows.filter(r =>
-    (sector === "All" || r.Sector === sector) &&
-    (sub === "All" || r.Sub_Sector === sub) &&
-    (mcap === "All" || r.Market_Cap === mcap)
-  );
-}
+  function getCurrentSector() {
+    const sel = document.getElementById("sector-select");
+    if (!sel || sel.value === "All") return null;
+    return sel.value;
+  }
 
-/* ================= DROPDOWNS ================= */
-function rebuildDropdowns() {
-  const sectorSel = document.getElementById("sector-select");
-  const subSel = document.getElementById("sub-sector-select");
-  const capSel = document.getElementById("market-cap-select");
+  function getCurrentPeriodKey() {
+    const sel = document.getElementById("period-select");
+    return sel ? sel.value : "FY1";
+  }
 
-  const sectorVal = sectorSel.value || "All";
-  const subVal = subSel.value || "All";
+  function getFilteredRows() {
+    const sector = getCurrentSector();
+    if (!sector) return allRows;
+    return allRows.filter(r => r.Sector === sector);
+  }
 
-  const sectors = [...new Set(allRows.map(r => r.Sector))].sort();
-  sectorSel.innerHTML =
-    `<option>All</option>` +
-    sectors.map(s => `<option>${s}</option>`).join("");
-  sectorSel.value = sectorVal;
+  /* ================= RENDER DISPATCH ================= */
 
-  const subSectors = allRows
-    .filter(r => sectorVal === "All" || r.Sector === sectorVal)
-    .map(r => r.Sub_Sector);
-  const uniqueSubs = [...new Set(subSectors)].sort();
+  function renderAll() {
+    if (currentTab === "growth") renderGrowth();
+    else if (currentTab === "valuation") renderValuation();
+    else if (currentTab === "margin") renderMargin();
+    else renderGsm();
+  }
 
-  subSel.innerHTML =
-    `<option>All</option>` +
-    uniqueSubs.map(s => `<option>${s}</option>`).join("");
-  subSel.value = subVal;
+  /* ================= GROWTH ================= */
 
-  const caps = allRows
-    .filter(r =>
-      (sectorVal === "All" || r.Sector === sectorVal) &&
-      (subVal === "All" || r.Sub_Sector === subVal)
-    )
-    .map(r => r.Market_Cap);
-  const uniqueCaps = [...new Set(caps)].sort();
+  function renderGrowthSection({ sectionId, config, filter, rows, suffix }) {
+    const body = document.getElementById(sectionId);
+    body.innerHTML = "";
 
-  capSel.innerHTML =
-    `<option>All</option>` +
-    uniqueCaps.map(c => `<option>${c}</option>`).join("");
-}
+    const metricCol = config.base + suffix;
+    const medCol = "Sub_Sector_Med_" + metricCol;
 
-/* ================= INIT ================= */
-Papa.parse("dashboard_data.csv?v=" + Date.now(), {
-  download: true,
-  header: true,
-  dynamicTyping: true,
-  complete: res => {
-    allRows = res.data.filter(r => r.Company);
-    rebuildDropdowns();
+    rows
+      .filter(r => passComparator(r[metricCol], filter.op, filter.threshold))
+      .sort((a, b) => (b[metricCol] || 0) - (a[metricCol] || 0))
+      .slice(0, 200)
+      .forEach(r => {
+        const v = r[metricCol];
+        const m = r[medCol];
+        const d = (typeof v === "number" && typeof m === "number") ? v - m : null;
 
-    ["sector-select","sub-sector-select","market-cap-select","period-select"]
-      .forEach(id => {
-        document.getElementById(id).addEventListener("change", () => {
-          rebuildDropdowns();
-          updatePeriodLabel();
-          renderAll();
-        });
+        body.innerHTML += `
+          <tr class="hover:bg-slate-800/70">
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="text-center font-medium">${fmtPct(v)}</td>
+            <td class="text-center text-slate-300">${fmtPct(m)}</td>
+            <td class="text-center ${d > 0 ? "text-emerald-400" : d < 0 ? "text-rose-400" : "text-slate-300"}">
+              ${d == null ? "" : fmtPct(d)}
+            </td>
+          </tr>`;
       });
-
-    document.getElementById("download-excel")
-      .addEventListener("click", downloadExcel);
-
-    setupTabs();
-    updatePeriodLabel();
-    renderAll();
   }
-});
+
+  /* ================= VALUATION ================= */
+
+  function renderValuationSection({ sectionId, config, filter, rows, suffix }) {
+    const body = document.getElementById(sectionId);
+    body.innerHTML = "";
+
+    const metricCol = config.base + suffix;
+    const medCol = "Sub_Sector_Med_" + metricCol;
+
+    rows
+      .filter(r => passComparator(r[metricCol], filter.op, filter.threshold))
+      .sort((a, b) => (a[metricCol] || 0) - (b[metricCol] || 0))
+      .slice(0, 200)
+      .forEach(r => {
+        const v = r[metricCol];
+        const m = r[medCol];
+        const d = (typeof v === "number" && typeof m === "number") ? v - m : null;
+
+        body.innerHTML += `
+          <tr class="hover:bg-slate-800/70">
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="text-center font-medium">${fmtNum(v)}</td>
+            <td class="text-center text-slate-300">${fmtNum(m)}</td>
+            <td class="text-center ${d > 0 ? "text-rose-400" : d < 0 ? "text-emerald-400" : "text-slate-300"}">
+              ${d == null ? "" : fmtNum(d)}
+            </td>
+          </tr>`;
+      });
+  }
+
+  /* ================= MARGIN ================= */
+
+  function renderMarginSection({ sectionId, config, filter, rows, suffix }) {
+    const body = document.getElementById(sectionId);
+    body.innerHTML = "";
+
+    let metricCol = config.base + suffix;
+    if (suffix === "CAGR3") {
+      metricCol = config.base === "EBITDA_MExp_" ? "EBITDA_Margin_CAGR3" : "PAT_Margin_CAGR3";
+    }
+
+    const medCol = "Sub_Sector_Med_" + metricCol;
+
+    rows
+      .filter(r => passComparator(r[metricCol], filter.op, filter.threshold))
+      .sort((a, b) => (b[metricCol] || 0) - (a[metricCol] || 0))
+      .slice(0, 200)
+      .forEach(r => {
+        const v = r[metricCol];
+        const m = r[medCol];
+        const d = (typeof v === "number" && typeof m === "number") ? v - m : null;
+
+        body.innerHTML += `
+          <tr class="hover:bg-slate-800/70">
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="text-center font-medium">${fmtPct(v)}</td>
+            <td class="text-center text-slate-300">${fmtPct(m)}</td>
+            <td class="text-center ${d > 0 ? "text-emerald-400" : d < 0 ? "text-rose-400" : "text-slate-300"}">
+              ${d == null ? "" : fmtPct(d)}
+            </td>
+          </tr>`;
+      });
+  }
+
+  /* ================= INIT ================= */
+
+  Papa.parse("dashboard_data.csv?v=" + Date.now(), {
+    download: true,
+    header: true,
+    dynamicTyping: true,
+    complete: res => {
+      allRows = res.data.filter(r => r.Company);
+      setupTabs();
+      setupFilterEvents();
+      updatePeriodLabel();
+      renderAll();
+    }
+  });
 </script>
 
 </div>
 </body>
 </html>
+
