@@ -99,14 +99,14 @@ function getVal(id) {
 }
 
 function getFilteredRows() {
-  const sector = getVal("sector-select");
-  const subSector = getVal("subsector-select");
-  const marketCap = getVal("marketcap-select");
+  const sector = document.getElementById("sector-select")?.value || "All";
+  const subSector = document.getElementById("subsector-select")?.value || "All";
+  const marketCap = document.getElementById("marketcap-select")?.value || "All";
 
   return allRows.filter(r => {
-    if (sector && r["Sector"] !== sector) return false;
-    if (subSector && r["Sub-Sector"] !== subSector) return false;
-    if (marketCap && r["Market Cap"] !== marketCap) return false;
+    if (sector !== "All" && r.Sector !== sector) return false;
+    if (subSector !== "All" && r["Sub-Sector"] !== subSector) return false;
+    if (marketCap !== "All" && r["Market Cap"] !== marketCap) return false;
     return true;
   });
 }
@@ -172,3 +172,4 @@ Papa.parse("dashboard_data.csv?v=" + Date.now(), {
 
 </body>
 </html>
+
