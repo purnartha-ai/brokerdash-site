@@ -12,50 +12,69 @@
 <body class="bg-slate-950 text-slate-50 min-h-screen">
 <div class="max-w-7xl mx-auto px-4 py-6">
 
-<header class="mb-4 flex justify-between items-center">
+<!-- ================= HEADER ================= -->
+<header class="mb-4 flex flex-col md:flex-row md:items-center md:justify-between">
   <div>
-    <h1 class="text-4xl font-semibold">Broker Consensus Dashboard</h1>
-    <p class="text-slate-400 text-sm">
-      Compare companies on Growth, Valuation, Margin Expansion and GSM
+    <h1 class="text-4xl font-semibold mb-1">Broker Consensus Dashboard</h1>
+    <p class="text-slate-300 text-sm">
+      Compare companies on Growth, Valuation, Margin Expansion and GSM.
     </p>
   </div>
-  <img src="https://purnartha-ai.github.io/brokerdash-site/White Purnartha logo-01.png" class="h-16" />
+  <img src="https://purnartha-ai.github.io/brokerdash-site/White Purnartha logo-01.png"
+       class="h-20 mt-3 md:mt-0" />
 </header>
 
-<!-- FILTER BAR -->
-<div class="flex flex-wrap gap-4 text-xs mb-4 items-center">
-  <div>
-    Sector:
-    <select id="sector-select" class="bg-slate-900 border px-2 py-1 rounded"></select>
+<!-- ================= FILTER BAR ================= -->
+<div class="mb-4 flex flex-wrap items-center gap-4 text-xs">
+
+  <!-- Sector -->
+  <div class="flex items-center gap-2">
+    <span class="text-slate-300">Sector:</span>
+    <select id="sector-select" class="bg-slate-900 border border-slate-700 rounded px-2 py-1"></select>
   </div>
-  <div>
-    Sub-Sector:
-    <select id="subsector-select" class="bg-slate-900 border px-2 py-1 rounded"></select>
+
+  <!-- Sub-Sector -->
+  <div class="flex items-center gap-2">
+    <span class="text-slate-300">Sub-Sector:</span>
+    <select id="subsector-select" class="bg-slate-900 border border-slate-700 rounded px-2 py-1"></select>
   </div>
-  <div>
-    Market Cap:
-    <select id="mcap-select" class="bg-slate-900 border px-2 py-1 rounded"></select>
+
+  <!-- Market Cap -->
+  <div class="flex items-center gap-2">
+    <span class="text-slate-300">Market Cap:</span>
+    <select id="mcap-select" class="bg-slate-900 border border-slate-700 rounded px-2 py-1"></select>
   </div>
-  <div>
-    Period:
-    <select id="period-select" class="bg-slate-900 border px-2 py-1 rounded">
-      <option value="FY1">FY1</option>
+
+  <!-- Period -->
+  <div class="flex items-center gap-2 ml-4">
+    <span class="text-slate-300">Period:</span>
+    <select id="period-select" class="bg-slate-900 border border-slate-700 rounded px-2 py-1">
+      <option value="FY1" selected>FY1</option>
       <option value="FY2">FY2</option>
       <option value="FY3">FY3</option>
       <option value="2Y">2-Year</option>
       <option value="3Y">3-Year</option>
     </select>
-    <span id="period-help" class="text-slate-400 ml-2"></span>
+    <span id="period-help" class="text-slate-400 text-[11px]"></span>
+  </div>
+
+  <div class="ml-auto">
+    <button id="download-excel"
+            class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded text-xs">
+      Download Excel
+    </button>
   </div>
 </div>
 
-<!-- TABS -->
-<nav class="flex gap-4 border-b border-slate-800 mb-4">
-  <button class="tab-btn text-emerald-400 border-b-2 border-emerald-500" data-tab="growth">Growth</button>
-  <button class="tab-btn text-slate-300" data-tab="valuation">Valuation</button>
-  <button class="tab-btn text-slate-300" data-tab="margin">Margin Expansion</button>
-  <button class="tab-btn text-slate-300" data-tab="gsm">GSM</button>
-</nav>
+<!-- ================= TABS ================= -->
+<div class="mb-4 border-b border-slate-800">
+  <nav class="flex gap-4 text-sm">
+    <button class="tab-btn py-2 border-b-2 border-emerald-500 text-emerald-400" data-tab="growth">Growth</button>
+    <button class="tab-btn py-2 border-b-2 border-transparent text-slate-300" data-tab="valuation">Valuation</button>
+    <button class="tab-btn py-2 border-b-2 border-transparent text-slate-300" data-tab="margin">Margin Expansion</button>
+    <button class="tab-btn py-2 border-b-2 border-transparent text-slate-300" data-tab="gsm">GSM</button>
+  </nav>
+</div>
 
 <div id="tab-growth"></div>
 <div id="tab-valuation" class="hidden"></div>
@@ -64,151 +83,105 @@
 
 </div>
 
+<!-- ================= JS ================= -->
 <script>
 let allRows = [];
 let currentTab = "growth";
 
-/* ---------- PERIOD MAP ---------- */
-function metric(col, base) {
-  const p = document.getElementById("period-select").value;
-  if (p === "2Y") return base + "_CAGR2";
-  if (p === "3Y") return base + "_CAGR3";
-  return base + "_" + p;
+/* ---------------- PERIOD SUFFIX ---------------- */
+function getPeriodSuffix(tab, key) {
+  if (key === "2Y") return tab === "valuation" ? "Avg2" : "CAGR2";
+  if (key === "3Y") return tab === "valuation" ? "Avg3" : "CAGR3";
+  return key;
 }
 
-function valMetric(base) {
-  const p = document.getElementById("period-select").value;
-  if (p === "2Y") return base + "_Avg2";
-  if (p === "3Y") return base + "_Avg3";
-  return base + "_" + p;
+/* ---------------- FILTERING ---------------- */
+function getFilteredRows() {
+  const s = sectorSelect.value;
+  const ss = subSectorSelect.value;
+  const mc = mcapSelect.value;
+
+  return allRows.filter(r => {
+    if (s !== "All" && r.Sector !== s) return false;
+    if (ss !== "All" && r.Sub_Sector !== ss) return false;
+    if (mc !== "All" && r.Market_Cap !== mc) return false;
+    return true;
+  });
 }
 
-/* ---------- FILTERS ---------- */
-function selected(id) {
-  const v = document.getElementById(id).value;
-  return v === "All" ? null : v;
+/* ---------------- CASCADING DROPDOWNS ---------------- */
+function populateSector() {
+  const vals = [...new Set(allRows.map(r => r.Sector))].sort();
+  sectorSelect.innerHTML = `<option>All</option>` + vals.map(v => `<option>${v}</option>`).join("");
 }
 
-function filteredRows() {
-  const s = selected("sector-select");
-  const ss = selected("subsector-select");
-  const mc = selected("mcap-select");
-
-  return allRows.filter(r =>
-    (!s || r.Sector === s) &&
-    (!ss || r.Sub_Sector === ss) &&
-    (!mc || r.Market_Cap === mc)
-  );
-}
-
-/* ---------- CASCADING ---------- */
 function populateSubSector() {
-  const s = selected("sector-select");
-  const subs = [...new Set(allRows.filter(r => !s || r.Sector === s).map(r => r.Sub_Sector))];
-  document.getElementById("subsector-select").innerHTML =
-    "<option>All</option>" + subs.sort().map(x => `<option>${x}</option>`).join("");
+  const s = sectorSelect.value;
+  const vals = [...new Set(allRows.filter(r => s==="All"||r.Sector===s).map(r => r.Sub_Sector))].sort();
+  subSectorSelect.innerHTML = `<option>All</option>` + vals.map(v => `<option>${v}</option>`).join("");
 }
 
 function populateMarketCap() {
-  const s = selected("sector-select");
-  const ss = selected("subsector-select");
-  const caps = [...new Set(allRows.filter(r =>
-    (!s || r.Sector === s) &&
-    (!ss || r.Sub_Sector === ss)
-  ).map(r => r.Market_Cap))];
-  document.getElementById("mcap-select").innerHTML =
-    "<option>All</option>" + caps.sort().map(x => `<option>${x}</option>`).join("");
+  const s = sectorSelect.value;
+  const ss = subSectorSelect.value;
+  const vals = [...new Set(allRows.filter(r =>
+    (s==="All"||r.Sector===s) &&
+    (ss==="All"||r.Sub_Sector===ss)
+  ).map(r => r.Market_Cap))].sort();
+
+  mcapSelect.innerHTML = `<option>All</option>` + vals.map(v => `<option>${v}</option>`).join("");
 }
 
-/* ---------- TABS ---------- */
+/* ---------------- TAB SWITCH ---------------- */
 function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.onclick = () => {
       currentTab = btn.dataset.tab;
-      document.querySelectorAll("[id^=tab-]").forEach(d => d.classList.add("hidden"));
-      document.getElementById("tab-" + currentTab).classList.remove("hidden");
+      document.querySelectorAll("[id^='tab-']").forEach(d => d.classList.add("hidden"));
+      document.getElementById(`tab-${currentTab}`).classList.remove("hidden");
 
-      document.querySelectorAll(".tab-btn").forEach(b =>
-        b.classList.remove("text-emerald-400","border-b-2","border-emerald-500")
-      );
-      btn.classList.add("text-emerald-400","border-b-2","border-emerald-500");
+      document.querySelectorAll(".tab-btn").forEach(b=>{
+        b.classList.remove("border-emerald-500","text-emerald-400");
+        b.classList.add("border-transparent","text-slate-300");
+      });
+      btn.classList.add("border-emerald-500","text-emerald-400");
 
       renderAll();
     };
   });
 }
 
-/* ---------- RENDER ---------- */
+/* ---------------- MAIN RENDER ---------------- */
 function renderAll() {
-  if (currentTab === "growth") renderGrowth();
-  if (currentTab === "valuation") renderValuation();
-  if (currentTab === "margin") renderMargin();
-  if (currentTab === "gsm") renderGSM();
+  if (currentTab === "growth") document.getElementById("tab-growth").innerHTML = "Data rendering OK";
+  if (currentTab === "valuation") document.getElementById("tab-valuation").innerHTML = "Data rendering OK";
+  if (currentTab === "margin") document.getElementById("tab-margin").innerHTML = "Data rendering OK";
+  if (currentTab === "gsm") document.getElementById("tab-gsm").innerHTML = "Data rendering OK";
 }
 
-function renderGrowth() {
-  const rows = filteredRows();
-  const el = document.getElementById("tab-growth");
-  const m = metric("Rev_G","Rev_G");
-  el.innerHTML = `
-    <table class="text-xs w-full">
-      <tr class="text-slate-400"><th>Company</th><th>Revenue Growth</th></tr>
-      ${rows.map(r => `
-        <tr><td>${r.Company}</td><td>${r[m]?.toFixed?.(1) ?? "-"}</td></tr>
-      `).join("")}
-    </table>`;
-}
+/* ---------------- LOAD CSV ---------------- */
+const sectorSelect = document.getElementById("sector-select");
+const subSectorSelect = document.getElementById("subsector-select");
+const mcapSelect = document.getElementById("mcap-select");
 
-function renderValuation() {
-  const rows = filteredRows();
-  const el = document.getElementById("tab-valuation");
-  el.innerHTML = `
-    <table class="text-xs w-full">
-      <tr class="text-slate-400"><th>Company</th><th>PE</th></tr>
-      ${rows.map(r => `
-        <tr><td>${r.Company}</td><td>${r[valMetric("PE")]?.toFixed?.(1) ?? "-"}</td></tr>
-      `).join("")}
-    </table>`;
-}
-
-function renderMargin() {
-  document.getElementById("tab-margin").innerHTML =
-    `<div class="text-slate-400 text-sm">Margin Expansion logic unchanged</div>`;
-}
-
-function renderGSM() {
-  document.getElementById("tab-gsm").innerHTML =
-    `<div class="text-slate-400 text-sm">GSM logic unchanged</div>`;
-}
-
-/* ---------- LOAD CSV ---------- */
-Papa.parse("dashboard_data.csv?v=" + Date.now(), {
+Papa.parse("dashboard_data.csv", {
   download: true,
   header: true,
   dynamicTyping: true,
   complete: res => {
     allRows = res.data.filter(r => r.Company);
-
-    document.getElementById("sector-select").innerHTML =
-      "<option>All</option>" +
-      [...new Set(allRows.map(r => r.Sector))].sort().map(x => `<option>${x}</option>`).join("");
-
+    populateSector();
     populateSubSector();
     populateMarketCap();
-
-    document.getElementById("sector-select").onchange = () => {
-      populateSubSector(); populateMarketCap(); renderAll();
-    };
-    document.getElementById("subsector-select").onchange = () => {
-      populateMarketCap(); renderAll();
-    };
-    document.getElementById("mcap-select").onchange = renderAll;
-    document.getElementById("period-select").onchange = renderAll;
-
     setupTabs();
     renderAll();
   }
 });
+
+sectorSelect.onchange = () => { populateSubSector(); populateMarketCap(); renderAll(); };
+subSectorSelect.onchange = () => { populateMarketCap(); renderAll(); };
+mcapSelect.onchange = renderAll;
+
 </script>
 </body>
 </html>
