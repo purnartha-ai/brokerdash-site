@@ -152,12 +152,26 @@ function setupTabs() {
 }
 
 /* ---------------- MAIN RENDER ---------------- */
-function renderAll() {
-  if (currentTab === "growth") document.getElementById("tab-growth").innerHTML = "Data rendering OK";
-  if (currentTab === "valuation") document.getElementById("tab-valuation").innerHTML = "Data rendering OK";
-  if (currentTab === "margin") document.getElementById("tab-margin").innerHTML = "Data rendering OK";
-  if (currentTab === "gsm") document.getElementById("tab-gsm").innerHTML = "Data rendering OK";
-}
+  function renderAll() {
+    const rows = getFilteredRows();
+    const periodKey = periodSelect.value;
+
+    if (currentTab === "growth") {
+      renderGrowth(rows, periodKey);
+    }
+
+    if (currentTab === "valuation") {
+      renderValuation(rows, periodKey);
+    }
+
+    if (currentTab === "margin") {
+      renderMarginExpansion(rows, periodKey);
+    }
+
+    if (currentTab === "gsm") {
+      renderGSM(rows, periodKey);
+    }
+  }
 
 /* ---------------- LOAD CSV ---------------- */
 const sectorSelect = document.getElementById("sector-select");
@@ -185,3 +199,4 @@ mcapSelect.onchange = renderAll;
 </script>
 </body>
 </html>
+
