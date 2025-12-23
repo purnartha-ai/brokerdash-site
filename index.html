@@ -4,277 +4,1396 @@
   <meta charset="UTF-8" />
   <title>Broker Consensus Dashboard</title>
 
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- PapaParse for CSV loading -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Inter, Arial, sans-serif;
-      background: radial-gradient(circle at top, #0b1025 0%, #040716 60%);
-      color: #ffffff;
-    }
-
-    header {
-      padding: 28px 40px 18px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 34px;
-      font-weight: 700;
-    }
-
-    .subtitle {
-      margin-top: 6px;
-      opacity: 0.8;
-    }
-
-    .filters {
-      display: flex;
-      gap: 16px;
-      margin-top: 22px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    select {
-      background: #0b122e;
-      color: white;
-      border: 1px solid #2a3566;
-      padding: 6px 10px;
-      border-radius: 4px;
-      min-width: 130px;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 22px;
-      margin-top: 22px;
-      border-bottom: 1px solid #243063;
-      padding-bottom: 8px;
-    }
-
-    .tab {
-      cursor: pointer;
-      padding-bottom: 6px;
-      opacity: 0.7;
-    }
-
-    .tab.active {
-      opacity: 1;
-      color: #3ff3b2;
-      border-bottom: 2px solid #3ff3b2;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      font-size: 13px;
-    }
-
-    th, td {
-      padding: 8px 10px;
-      border-bottom: 1px solid #1f2a55;
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    th {
-      text-align: right;
-      font-weight: 600;
-      color: #9bb1ff;
-    }
-
-    td:first-child, th:first-child {
-      text-align: left;
-    }
-
-    .container {
-      padding: 0 40px 40px;
-    }
-  </style>
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 
-<body>
+<body class="bg-slate-950 text-slate-50 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header -->
+    <header class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h1 class="text-4xl font-semibold tracking-tight mb-1">
+          Broker Consensus Dashboard
+        </h1>
+        <p class="text-1xl text-slate-300">
+          Compare companies on Growth, Valuation, Margin Expansion and GSM. Filters reset on refresh.
+        </p>
+      </div>
 
-<header>
-  <h1>Broker Consensus Dashboard</h1>
-  <div class="subtitle">
-    Compare companies on Growth, Valuation, Margin Expansion and GSM.
+      <!-- Top-right logo (replace src with your actual logo path) -->
+      <div class="mt-2 md:mt-0">
+        <img
+          src="https://purnartha-ai.github.io/brokerdash-site/White Purnartha logo-01.png"
+          alt="Purnartha Logo"
+          class="h-24 w-auto object-contain"
+        />
+      </div>
+    </header>
+
+    <!-- Top controls: Sector + Sub-Sector + Market Cap + Period + Download button -->
+    <div class="mb-4 flex flex-wrap items-center gap-3 text-xs">
+      <!-- Sector -->
+      <div class="text-sm flex items-center gap-2">
+        <span class="text-slate-300">Sector:</span>
+        <select
+          id="sector-select"
+          class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
+        ></select>
+      </div>
+
+      <!-- Sub-Sector -->
+      <div class="text-sm flex items-center gap-2">
+        <span class="text-slate-300">Sub-Sector:</span>
+        <select
+          id="subsector-select"
+          class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
+        ></select>
+      </div>
+
+      <!-- Market Cap -->
+      <div class="text-sm flex items-center gap-2">
+        <span class="text-slate-300">Market Cap:</span>
+        <select
+          id="marketcap-select"
+          class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
+        ></select>
+      </div>
+
+      <!-- Period -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-slate-300">Period:</span>
+        <select
+          id="period-select"
+          class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
+        >
+          <option value="FY1" selected>FY1</option>
+          <option value="FY2">FY2</option>
+          <option value="FY3">FY3</option>
+          <option value="3Y">3-Year</option>
+        </select>
+        <span
+          id="period-help"
+          class="text-slate-400 text-[12px]"
+        ></span>
+      </div>
+
+      <!-- Download button (right aligned) -->
+      <div class="ml-auto">
+        <button
+          id="download-excel"
+          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-medium shadow-sm"
+        >
+          Download Excel
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mb-4 border-b border-slate-800">
+      <nav class="flex gap-4 text-sm">
+        <button
+          class="tab-btn py-2 border-b-2 border-emerald-500 text-emerald-400"
+          data-tab="growth"
+        >
+          Growth
+        </button>
+        <button
+          class="tab-btn py-2 border-b-2 border-transparent text-slate-300 hover:text-slate-100"
+          data-tab="valuation"
+        >
+          Valuation
+        </button>
+        <button
+          class="tab-btn py-2 border-b-2 border-transparent text-slate-300 hover:text-slate-100"
+          data-tab="margin"
+        >
+          Margin Expansion
+        </button>
+        <button
+          class="tab-btn py-2 border-b-2 border-transparent text-slate-300 hover:text-slate-100"
+          data-tab="gsm"
+        >
+          GSM
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- GROWTH TAB -->
+    <!-- ===================================================== -->
+    <div id="tab-growth">
+      <div class="mb-3 text-xs text-slate-400">
+        Defaults: Revenue ≥ 20%, EBITDA ≥ 20%, EPS ≥ 20%.
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 text-xs">
+        <!-- Revenue Growth -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="growth-revenue">
+          <h2 class="text-lg font-semibold mb-2">Revenue Growth</h2>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-slate-300">Filter:</span>
+            <select id="growth-rev-op"
+                    class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5">
+              <option value=">">&gt;</option>
+              <option value=">=" selected>&ge;</option>
+              <option value="<">&lt;</option>
+              <option value="<=">&le;</option>
+            </select>
+            <input id="growth-rev-threshold"
+                   type="number" step="0.1" value="20"
+                   class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16" />
+            <span class="text-slate-400">%</span>
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Growth</th>
+                  <th class="pr-2 text-center">Sector Median</th>
+                  <th class="pr-2 text-center">Diff.</th>
+                </tr>
+              </thead>
+              <tbody id="growth-rev-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- EBITDA Growth -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="growth-ebitda">
+          <h2 class="text-lg font-semibold mb-2">EBITDA Growth</h2>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-slate-300">Filter:</span>
+            <select id="growth-ebitda-op"
+                    class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5">
+              <option value=">">&gt;</option>
+              <option value=">=" selected>&ge;</option>
+              <option value="<">&lt;</option>
+              <option value="<=">&le;</option>
+            </select>
+            <input id="growth-ebitda-threshold"
+                   type="number" step="0.1" value="20"
+                   class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16" />
+            <span class="text-slate-400">%</span>
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Growth</th>
+                  <th class="pr-2 text-center">Sector Median</th>
+                  <th class="pr-2 text-center">Diff.</th>
+                </tr>
+              </thead>
+              <tbody id="growth-ebitda-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- EPS Growth -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="growth-eps">
+          <h2 class="text-lg font-semibold mb-2">EPS Growth</h2>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-slate-300">Filter:</span>
+            <select id="growth-eps-op"
+                    class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5">
+              <option value=">">&gt;</option>
+              <option value=">=" selected>&ge;</option>
+              <option value="<">&lt;</option>
+              <option value="<=">&le;</option>
+            </select>
+            <input id="growth-eps-threshold"
+                   type="number" step="0.1" value="20"
+                   class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16" />
+            <span class="text-slate-400">%</span>
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Growth</th>
+                  <th class="pr-2 text-center">Sector Median</th>
+                  <th class="pr-2 text-center">Diff.</th>
+                </tr>
+              </thead>
+              <tbody id="growth-eps-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Combined (Growth) -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="growth-combined">
+          <h2 class="text-lg font-semibold mb-2">Combined (Growth)</h2>
+          <p class="text-[11px] text-slate-400 mb-2">
+            Companies in the selected sector &amp; period that pass all three growth filters.
+          </p>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Rev Growth</th>
+                  <th class="pr-2 text-center">EBITDA Growth</th>
+                  <th class="pr-2 text-center">EPS Growth</th>
+                </tr>
+              </thead>
+              <tbody id="growth-combined-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- VALUATION TAB -->
+    <!-- ===================================================== -->
+    <div id="tab-valuation" class="hidden">
+      <div class="mb-3 text-xs text-slate-400">
+        Defaults: PE ≤ 25, PB ≤ 6, PS ≤ 6. Price is previous close of last run.
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 text-xs">
+        <!-- PE -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="valuation-pe">
+          <h2 class="text-lg font-semibold mb-2">PE</h2>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-slate-300">Filter:</span>
+            <select id="val-pe-op"
+                    class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5">
+              <option value=">">&gt;</option>
+              <option value=">=">&ge;</option>
+              <option value="<">&lt;</option>
+              <option value="<=" selected>&le;</option>
+            </select>
+            <input id="val-pe-threshold"
+                   type="number" step="0.1" value="25"
+                   class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16" />
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Value</th>
+                  <th class="pr-2 text-center">Sector Median</th>
+                  <th class="pr-2 text-center">Diff.</th>
+                </tr>
+              </thead>
+              <tbody id="val-pe-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- PB -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="valuation-pb">
+          <h2 class="text-lg font-semibold mb-2">PB</h2>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-slate-300">Filter:</span>
+            <select id="val-pb-op"
+                    class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5">
+              <option value=">">&gt;</option>
+              <option value=">=">&ge;</option>
+              <option value="<">&lt;</option>
+              <option value="<=" selected>&le;</option>
+            </select>
+            <input id="val-pb-threshold"
+                   type="number" step="0.1" value="6"
+                   class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16" />
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Value</th>
+                  <th class="pr-2 text-center">Sector Median</th>
+                  <th class="pr-2 text-center">Diff.</th>
+                </tr>
+              </thead>
+              <tbody id="val-pb-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- PS -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="valuation-ps">
+            <h2 class="text-lg font-semibold mb-2">PS <span class="text-[11px] font-normal ml-1">(Based on MarketCap at
+                Quarter End.)</span> </h2>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-slate-300">Filter:</span>
+            <select id="val-ps-op"
+                    class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5">
+              <option value=">">&gt;</option>
+              <option value=">=">&ge;</option>
+              <option value="<">&lt;</option>
+              <option value="<=" selected>&le;</option>
+            </select>
+            <input id="val-ps-threshold"
+                   type="number" step="0.1" value="6"
+                   class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16" />
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Value</th>
+                  <th class="pr-2 text-center">Sector Median</th>
+                  <th class="pr-2 text-center">Diff.</th>
+                </tr>
+              </thead>
+              <tbody id="val-ps-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Combined (Valuation) -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="valuation-combined">
+          <h2 class="text-lg font-semibold mb-2">Combined (Valuation)</h2>
+          <p class="text-[11px] text-slate-400 mb-2">
+            Companies in the selected sector &amp; period that pass all three valuation filters.
+          </p>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">PE</th>
+                  <th class="pr-2 text-center">PB</th>
+                  <th class="pr-2 text-center">PS</th>
+                </tr>
+              </thead>
+              <tbody id="val-combined-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- MARGIN TAB -->
+    <!-- ===================================================== -->
+    <div id="tab-margin" class="hidden">
+      <div class="mb-3 text-xs text-slate-400">
+        Defaults: EBITDA Margin Expansion ≥ 2%, PAT Margin Expansion ≥ 2%.
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
+        <!-- EBITDA Margin Expansion -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="margin-ebitda">
+          <h2 class="text-lg font-semibold mb-2">EBITDA Margin Expansion</h2>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-slate-300">Filter:</span>
+            <select id="margin-ebitda-op"
+                    class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5">
+              <option value=">">&gt;</option>
+              <option value=">=" selected>&ge;</option>
+              <option value="<">&lt;</option>
+              <option value="<=">&le;</option>
+            </select>
+            <input id="margin-ebitda-threshold"
+                   type="number" step="0.1" value="2"
+                   class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16" />
+            <span class="text-slate-400">%</span>
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Margin Exp.</th>
+                  <th class="pr-2 text-center">Sector Median</th>
+                  <th class="pr-2 text-center">Diff.</th>
+                </tr>
+              </thead>
+              <tbody id="margin-ebitda-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- PAT Margin Expansion -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="margin-pat">
+          <h2 class="text-lg font-semibold mb-2">PAT Margin Expansion</h2>
+
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-slate-300">Filter:</span>
+            <select id="margin-pat-op"
+                    class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5">
+              <option value=">">&gt;</option>
+              <option value=">=" selected>&ge;</option>
+              <option value="<">&lt;</option>
+              <option value="<=">&le;</option>
+            </select>
+            <input id="margin-pat-threshold"
+                   type="number" step="0.1" value="2"
+                   class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16" />
+            <span class="text-slate-400">%</span>
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">Margin Exp.</th>
+                  <th class="pr-2 text-center">Sector Median</th>
+                  <th class="pr-2 text-center">Diff.</th>
+                </tr>
+              </thead>
+              <tbody id="margin-pat-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Combined (Margin Expansion) -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="margin-combined">
+          <h2 class="text-lg font-semibold mb-2">Combined (Margin Expansion)</h2>
+          <p class="text-[11px] text-slate-400 mb-2">
+            Companies in the selected sector &amp; period that pass both margin filters.
+          </p>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">EBITDA Margin Exp.</th>
+                  <th class="pr-2 text-center">PAT Margin Exp.</th>
+                </tr>
+              </thead>
+              <tbody id="margin-combined-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- GSM TAB -->
+    <!-- ===================================================== -->
+    <div id="tab-gsm" class="hidden">
+      <div class="mb-3 text-xs text-slate-400">
+        Defaults: (Revenue Growth ≥ 20% OR EPS Growth ≥ 20%) AND PE ≤ 20.
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-1 gap-4 text-xs">
+        <!-- GSM main section -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="gsm-main">
+          <h2 class="text-lg font-semibold mb-2">GSM Screen</h2>
+
+          <!-- GSM Filters -->
+          <div class="flex flex-wrap items-center gap-4 mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-slate-300 text-[11px]">Rev Growth ≥</span>
+              <input
+                id="gsm-rev-threshold"
+                type="number"
+                step="0.1"
+                value="20"
+                class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16"
+              />
+              <span class="text-slate-400 text-[11px]">%</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-slate-300 text-[11px]">EPS Growth ≥</span>
+              <input
+                id="gsm-eps-threshold"
+                type="number"
+                step="0.1"
+                value="20"
+                class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16"
+              />
+              <span class="text-slate-400 text-[11px]">%</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-slate-300 text-[11px]">PE ≤</span>
+              <input
+                id="gsm-pe-threshold"
+                type="number"
+                step="0.1"
+                value="20"
+                class="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 w-16"
+              />
+            </div>
+          </div>
+
+          <!-- GSM Table -->
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr id="gsm-header-row"></tr>
+              </thead>
+              <tbody id="gsm-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
   </div>
 
-  <div class="filters">
-    <label>Sector:
-      <select id="sector-select"></select>
-    </label>
+  <!-- ===================================================== -->
+  <!-- JS LOGIC -->
+  <!-- ===================================================== -->
+  <script>
+    let allRows = [];
+    let currentTab = "growth";
 
-    <label>Sub-Sector:
-      <select id="subsector-select"></select>
-    </label>
+    const CONFIG = {
+      growth: {
+        revenue: { base: "Rev_G_", label: "Revenue Growth" },
+        ebitda: { base: "EBITDA_G_", label: "EBITDA Growth" },
+        eps: { base: "EPS_G_", label: "EPS Growth" },
+      },
+      valuation: {
+        pe: { base: "PE_", label: "PE" },
+        pb: { base: "PB_", label: "PB" },
+        ps: { base: "PS_", label: "PS" },
+      },
+      margin: {
+        ebitda: { base: "EBITDA_MExp_", label: "EBITDA Margin Exp." },
+        pat: { base: "PAT_MExp_", label: "PAT Margin Exp." },
+      },
+    };
 
-    <label>Market Cap:
-      <select id="marketcap-select"></select>
-    </label>
+    function getPeriodSuffix(tab, periodKey) {
+      if (periodKey === "3Y") {
+        return tab === "valuation" ? "Avg3" : "CAGR3";
+      }
+      return periodKey;
+    }
 
-    <label>Period:
-      <select id="period-select">
-        <option value="FY1">FY1</option>
-        <option value="FY2">FY2</option>
-        <option value="FY3">FY3</option>
-      </select>
-    </label>
-  </div>
+    function updatePeriodLabel() {
+    const periodSelect = document.getElementById("period-select");
+    const help = document.getElementById("period-help");
+    if (!periodSelect || !help) return;
+    const option3Y = periodSelect.querySelector('option[value="3Y"]');
+    if (!option3Y) return;
 
-  <div class="tabs">
-    <div class="tab active" data-tab="growth">Growth</div>
-    <div class="tab" data-tab="valuation">Valuation</div>
-    <div class="tab" data-tab="margin">Margin Expansion</div>
-    <div class="tab" data-tab="gsm">GSM</div>
-  </div>
-</header>
+    // Always allow all periods (no greying out)
+    const opts = periodSelect.querySelectorAll("option");
+    opts.forEach(o => { o.disabled = false; });
 
-<div class="container">
-  <div id="table-container"></div>
-</div>
+    // Set 3Y label based on active tab
+    if (currentTab === "growth" || currentTab === "margin") {
 
-<script>
-let allRows = [];
-let activeTab = "growth";
+    // Growth & Margin Expansion
+    option3Y.textContent = "3-Year CAGR";
+  } else if (currentTab === "valuation") {
 
-/* ===============================
-   CSV LOAD
-================================ */
-Papa.parse("dashboard_data.csv?v=" + Date.now(), {
-  download: true,
-  header: true,
-  dynamicTyping: true,
-  complete: function (res) {
-    allRows = res.data.filter(r => r.Company);
-    initFilters();
-    initTabs();
-    renderAll();
+    // Valuation
+    option3Y.textContent = "3-Year Avg";
+  } else if (currentTab === "gsm") {
+
+    // GSM
+    option3Y.textContent = "3-Year";
   }
-});
 
-/* ===============================
-   FILTER INITIALISATION
-================================ */
-function initFilters() {
-  const sectorSel = document.getElementById("sector-select");
-  const subSel = document.getElementById("subsector-select");
-  const capSel = document.getElementById("marketcap-select");
-
-  const sectors = [...new Set(allRows.map(r => r.Sector))].filter(Boolean).sort();
-  sectorSel.innerHTML =
-    `<option value="All">All</option>` +
-    sectors.map(s => `<option value="${s}">${s}</option>`).join("");
-
-  capSel.innerHTML = `
-    <option value="All">All</option>
-    <option value="Large Cap">Large Cap</option>
-    <option value="Mid Cap">Mid Cap</option>
-    <option value="Small Cap">Small Cap</option>
-  `;
-
-  updateSubSector();
-
-  sectorSel.addEventListener("change", () => {
-    updateSubSector();
-    renderAll();
-  });
-
-  subSel.addEventListener("change", renderAll);
-  capSel.addEventListener("change", renderAll);
-  document.getElementById("period-select").addEventListener("change", renderAll);
-}
-
-function updateSubSector() {
-  const sector = document.getElementById("sector-select").value;
-  const subSel = document.getElementById("subsector-select");
-
-  const subs = [...new Set(
-    allRows
-      .filter(r => sector === "All" || r.Sector === sector)
-      .map(r => r.Sub_Sector)
-  )].filter(Boolean).sort();
-
-  subSel.innerHTML =
-    `<option value="All">All</option>` +
-    subs.map(s => `<option value="${s}">${s}</option>`).join("");
-}
-
-/* ===============================
-   FILTERED DATA
-================================ */
-function getFilteredRows() {
-  const sector = document.getElementById("sector-select").value;
-  const sub = document.getElementById("subsector-select").value;
-  const cap = document.getElementById("marketcap-select").value;
-
-  return allRows.filter(r => {
-    if (sector !== "All" && r.Sector !== sector) return false;
-    if (sub !== "All" && r.Sub_Sector !== sub) return false;
-    if (cap !== "All" && r.Market_Cap !== cap) return false;
-    return true;
-  });
-}
-
-/* ===============================
-   TABS
-================================ */
-function initTabs() {
-  document.querySelectorAll(".tab").forEach(t => {
-    t.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
-      t.classList.add("active");
-      activeTab = t.dataset.tab;
-      renderAll();
-    });
-  });
-}
-
-/* ===============================
-   RENDER
-================================ */
-function renderAll() {
-  const rows = getFilteredRows();
-  const period = document.getElementById("period-select").value;
-  const el = document.getElementById("table-container");
-
-  if (rows.length === 0) {
-    el.innerHTML = "<p>No data for selected filters.</p>";
-    return;
-  }
-
-  let cols = ["Company"];
-
-  if (activeTab === "growth") {
-    cols.push(`Rev_G_${period}`, `EPS_G_${period}`, `EBITDA_G_${period}`);
-  } else if (activeTab === "valuation") {
-    cols.push(`PE_${period}`, `PB_${period}`, `PS_${period}`);
-  } else if (activeTab === "margin") {
-    cols.push(`EBITDA_MExp_${period}`, `PAT_MExp_${period}`);
+  // Help text: ONLY in GSM tab AND ONLY when 3-Year is selected
+  if (currentTab === "gsm" && periodSelect.value === "3Y") {
+    help.textContent = "Note: For 3-Year preiod we calculate CAGR for Revenue Growth & EPS Growth and Average for PE.";
   } else {
-    cols.push("PE_Avg3", "Rev_G_CAGR3", "EBITDA_G_CAGR3");
+    help.textContent = "";
   }
-
-  let html = "<table><thead><tr>";
-  cols.forEach(c => html += `<th>${c}</th>`);
-  html += "</tr></thead><tbody>";
-
-  rows.forEach(r => {
-    html += "<tr>";
-    cols.forEach(c => {
-      html += `<td>${r[c] ?? ""}</td>`;
-    });
-    html += "</tr>";
-  });
-
-  html += "</tbody></table>";
-  el.innerHTML = html;
 }
-</script>
 
+    function passComparator(value, op, threshold) {
+      if (value == null || isNaN(value)) return false;
+      switch (op) {
+        case ">":  return value > threshold;
+        case ">=": return value >= threshold;
+        case "<":  return value < threshold;
+        case "<=": return value <= threshold;
+        default:   return true;
+      }
+    }
+
+    function fmtPct(v) {
+      if (v == null || isNaN(v)) return "";
+      return v.toFixed(1) + "%";
+    }
+
+    function fmtNum(v) {
+      if (v == null || isNaN(v)) return "";
+      return v.toFixed(1);
+    }
+
+    function getCurrentSector() {
+      const sel = document.getElementById("sector-select");
+      if (!sel) return null;
+      const val = sel.value;
+      return (val === "All") ? null : val;
+    }
+
+    function getCurrentSubSector() {
+      const sel = document.getElementById("subsector-select");
+      if (!sel) return null;
+      const val = sel.value;
+      return (val === "All") ? null : val;
+    }
+
+    function getCurrentMarketCap() {
+      const sel = document.getElementById("marketcap-select");
+      if (!sel) return null;
+      const val = sel.value;
+      return (val === "All") ? null : val;
+    }
+
+    function getCurrentPeriodKey() {
+      const sel = document.getElementById("period-select");
+      return sel ? sel.value : "FY1";
+    }
+
+    function getFilteredRows() {
+      const sector = getCurrentSector();
+      const subSector = getCurrentSubSector();
+      const marketCap = getCurrentMarketCap();
+      
+      return allRows.filter(r => {
+        if (sector && r.Sector !== sector) return false;
+        if (subSector && r.Sub_Sector !== subSector) return false;
+        if (marketCap && r.Market_Cap !== marketCap) return false;
+        return true;
+      });
+    }
+
+    // ---------------- TAB SWITCHING ----------------
+    function setupTabs() {
+      const tabButtons = document.querySelectorAll(".tab-btn");
+      tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const tab = btn.dataset.tab;
+          currentTab = tab;
+
+          tabButtons.forEach(b => {
+            if (b === btn) {
+              b.classList.add("border-emerald-500", "text-emerald-400");
+              b.classList.remove("border-transparent", "text-slate-300");
+            } else {
+              b.classList.remove("border-emerald-500", "text-emerald-400");
+              b.classList.add("border-transparent", "text-slate-300");
+            }
+          });
+
+          document.getElementById("tab-growth").classList.add("hidden");
+          document.getElementById("tab-valuation").classList.add("hidden");
+          document.getElementById("tab-margin").classList.add("hidden");
+          document.getElementById("tab-gsm").classList.add("hidden");
+
+          document.getElementById(`tab-${tab}`).classList.remove("hidden");
+
+          updatePeriodLabel();
+          renderAll();
+        });
+      });
+    }
+
+    // ---------------- FILTER STATES ----------------
+    function getGrowthFilterState() {
+      return {
+        revenue: {
+          op: document.getElementById("growth-rev-op").value,
+          threshold: parseFloat(document.getElementById("growth-rev-threshold").value) || 0,
+        },
+        ebitda: {
+          op: document.getElementById("growth-ebitda-op").value,
+          threshold: parseFloat(document.getElementById("growth-ebitda-threshold").value) || 0,
+        },
+        eps: {
+          op: document.getElementById("growth-eps-op").value,
+          threshold: parseFloat(document.getElementById("growth-eps-threshold").value) || 0,
+        },
+      };
+    }
+
+    function getValuationFilterState() {
+      return {
+        pe: {
+          op: document.getElementById("val-pe-op").value,
+          threshold: parseFloat(document.getElementById("val-pe-threshold").value) || 0,
+        },
+        pb: {
+          op: document.getElementById("val-pb-op").value,
+          threshold: parseFloat(document.getElementById("val-pb-threshold").value) || 0,
+        },
+        ps: {
+          op: document.getElementById("val-ps-op").value,
+          threshold: parseFloat(document.getElementById("val-ps-threshold").value) || 0,
+        },
+      };
+    }
+
+    function getMarginFilterState() {
+      return {
+        ebitda: {
+          op: document.getElementById("margin-ebitda-op").value,
+          threshold: parseFloat(document.getElementById("margin-ebitda-threshold").value) || 0,
+        },
+        pat: {
+          op: document.getElementById("margin-pat-op").value,
+          threshold: parseFloat(document.getElementById("margin-pat-threshold").value) || 0,
+        },
+      };
+    }
+
+    function getGsmFilterState() {
+      return {
+        rev: parseFloat(document.getElementById("gsm-rev-threshold").value) || 0,
+        eps: parseFloat(document.getElementById("gsm-eps-threshold").value) || 0,
+        pe:  parseFloat(document.getElementById("gsm-pe-threshold").value)  || 0,
+      };
+    }
+
+    // ---------------- RENDER DISPATCH ----------------
+    function renderAll() {
+      if (currentTab === "growth") {
+        renderGrowth();
+      } else if (currentTab === "valuation") {
+        renderValuation();
+      } else if (currentTab === "margin") {
+        renderMargin();
+      } else if (currentTab === "gsm") {
+        renderGsm();
+      }
+    }
+
+    // ---------- Growth ----------
+    function renderGrowth() {
+      const sectorRows = getFilteredRows();
+      const periodKey = getCurrentPeriodKey();
+      const suffix = getPeriodSuffix("growth", periodKey);
+      const filters = getGrowthFilterState();
+
+      renderGrowthSection({
+        sectionId: "growth-rev-body",
+        config: CONFIG.growth.revenue,
+        filter: filters.revenue,
+        rows: sectorRows,
+        suffix,
+      });
+
+      renderGrowthSection({
+        sectionId: "growth-ebitda-body",
+        config: CONFIG.growth.ebitda,
+        filter: filters.ebitda,
+        rows: sectorRows,
+        suffix,
+      });
+
+      renderGrowthSection({
+        sectionId: "growth-eps-body",
+        config: CONFIG.growth.eps,
+        filter: filters.eps,
+        rows: sectorRows,
+        suffix,
+      });
+
+      renderGrowthCombined({
+        sectionId: "growth-combined-body",
+        rows: sectorRows,
+        suffix,
+        filters,
+      });
+    }
+
+    function renderGrowthSection({ sectionId, config, filter, rows, suffix }) {
+      const body = document.getElementById(sectionId);
+      body.innerHTML = "";
+
+      const metricCol = config.base + suffix;
+      const medCol = "Sector_Med_" + metricCol;
+
+      rows
+        .filter(r => passComparator(r[metricCol], filter.op, filter.threshold))
+        .sort((a, b) => (b[metricCol] || 0) - (a[metricCol] || 0))
+        .slice(0, 200)
+        .forEach(r => {
+          const value = r[metricCol];
+          const med = r[medCol];
+          const diff = (typeof value === "number" && typeof med === "number")
+            ? value - med
+            : null;
+
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/70";
+          tr.innerHTML = `
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(value)}</td>
+            <td class="pr-2 py-0.5 text-center text-slate-300">${fmtPct(med)}</td>
+            <td class="pr-2 py-0.5 text-center ${
+              diff > 0 ? "text-emerald-400" :
+              diff < 0 ? "text-rose-400" : "text-slate-300"
+            }">${diff == null ? "" : fmtPct(diff)}</td>
+          `;
+          body.appendChild(tr);
+    });
+}
+
+    // ---------- GSM ----------
+    function renderGsm() {
+      const body = document.getElementById("gsm-body");
+      const headerRow = document.getElementById("gsm-header-row");
+      body.innerHTML = "";
+      headerRow.innerHTML = "";
+
+      const filters = getGsmFilterState();
+      const sector = getCurrentSector();
+      const subSector = getCurrentSubSector();
+      const marketCap = getCurrentMarketCap();
+      const showSectorColumn = (sector === null);  // Show sector column only if "All" is selected
+
+      const periodKey = getCurrentPeriodKey();
+
+      // Determine columns based on period
+      let revCol, epsCol, peCol;
+      if (periodKey === "3Y") {
+        // 3-Year: CAGR for growth, Avg for PE
+        revCol = "Rev_G_CAGR3";
+        epsCol = "EPS_G_CAGR3";
+        peCol  = "PE_Avg3";
+      } else {
+        // FY1, FY2, FY3
+        revCol = "Rev_G_" + periodKey;
+        epsCol = "EPS_G_" + periodKey;
+        peCol  = "PE_" + periodKey;
+      }
+
+      // Header: show sector column only if "All" sectors selected
+      if (showSectorColumn) {
+        headerRow.innerHTML = `
+          <th class="pr-2">Company</th>
+          <th class="pr-2 text-left">Sector</th>
+          <th class="pr-2 text-center">Rev Growth</th>
+          <th class="pr-2 text-center">EPS Growth</th>
+          <th class="pr-2 text-center">PE</th>
+        `;
+      } else {
+        headerRow.innerHTML = `
+          <th class="pr-2">Company</th>
+          <th class="pr-2 text-center">Rev Growth</th>
+          <th class="pr-2 text-center">EPS Growth</th>
+          <th class="pr-2 text-center">PE</th>
+        `;
+      }
+
+      const filtered = allRows
+        .filter(r => {
+          if (sector && r.Sector !== sector) return false;
+          if (subSector && r.Sub_Sector !== subSector) return false;
+          if (marketCap && r.Market_Cap !== marketCap) return false;
+
+          const rev = r[revCol];
+          const eps = r[epsCol];
+          const pe  = r[peCol];
+
+          const passGrowth =
+            ((rev != null && !isNaN(rev) && rev >= filters.rev) ||
+             (eps != null && !isNaN(eps) && eps >= filters.eps));
+
+          const passPe = (pe != null && !isNaN(pe) && pe <= filters.pe);
+
+          return passGrowth && passPe;
+        })
+        .sort((a, b) => {
+          const aRev = a[revCol] || 0;
+          const bRev = b[revCol] || 0;
+          if (bRev !== aRev) return bRev - aRev;
+          const aEps = a[epsCol] || 0;
+          const bEps = b[epsCol] || 0;
+          return bEps - aEps;
+        })
+        .slice(0, 500);
+
+      filtered.forEach(r => {
+        const rev = r[revCol];
+        const eps = r[epsCol];
+        const pe  = r[peCol];
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-800/70";
+
+        if (showSectorColumn) {
+          tr.innerHTML = `
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="pr-2 py-0.5 text-left">${r.Sector || ""}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(rev)}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(eps)}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(pe)}</td>
+          `;
+        } else {
+          tr.innerHTML = `
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(rev)}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(eps)}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(pe)}</td>
+          `;
+        }
+
+        body.appendChild(tr);
+      });
+    }
+
+    // ---------------- LIVE FILTER EVENTS ----------------
+    function setupFilterEvents() {
+      const ids = [
+        "growth-rev-op", "growth-rev-threshold",
+        "growth-ebitda-op", "growth-ebitda-threshold",
+        "growth-eps-op", "growth-eps-threshold",
+        "val-pe-op", "val-pe-threshold",
+        "val-pb-op", "val-pb-threshold",
+        "val-ps-op", "val-ps-threshold",
+        "margin-ebitda-op", "margin-ebitda-threshold",
+        "margin-pat-op", "margin-pat-threshold",
+        "gsm-rev-threshold", "gsm-eps-threshold", "gsm-pe-threshold",
+        "period-select",
+      ];
+
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const eventName = el.tagName === "SELECT" ? "change" : "input";
+        el.addEventListener(eventName, () => {
+          if (id === "period-select") {
+            updatePeriodLabel();
+          }
+          renderAll();
+        });
+      });
+
+      // Cascading filter events
+      document.getElementById("sector-select").addEventListener("change", () => {
+        updateSubSectorOptions();
+        updateMarketCapOptions();
+        updatePeriodLabel();
+        renderAll();
+      });
+
+      document.getElementById("subsector-select").addEventListener("change", () => {
+        updateMarketCapOptions();
+        updatePeriodLabel();
+        renderAll();
+      });
+
+      document.getElementById("marketcap-select").addEventListener("change", () => {
+        updatePeriodLabel();
+        renderAll();
+      });
+    }
+
+    // ---------------- POPULATE DROPDOWNS WITH CASCADING ----------------
+    function populateSubSectorOptions() {
+      const sector = getCurrentSector();
+      const subsectorSelect = document.getElementById("subsector-select");
+      
+      let filteredRows = allRows;
+      if (sector) {
+        filteredRows = allRows.filter(r => r.Sector === sector);
+      }
+      
+      const subSectors = [...new Set(filteredRows.map(r => r.Sub_Sector))].filter(Boolean).sort();
+      
+      subsectorSelect.innerHTML = 
+        `<option value="All" selected>All</option>` +
+        subSectors.map(s => `<option value="${s}">${s}</option>`).join("");
+    }
+
+    function updateSubSectorOptions() {
+      const currentSubSector = getCurrentSubSector();
+      populateSubSectorOptions();
+      
+      // Try to maintain selection if still valid
+      const subsectorSelect = document.getElementById("subsector-select");
+      const options = Array.from(subsectorSelect.options).map(o => o.value);
+      if (currentSubSector && options.includes(currentSubSector)) {
+        subsectorSelect.value = currentSubSector;
+      }
+    }
+
+    function populateMarketCapOptions() {
+      const sector = getCurrentSector();
+      const subSector = getCurrentSubSector();
+      const marketcapSelect = document.getElementById("marketcap-select");
+      
+      let filteredRows = allRows;
+      if (sector) {
+        filteredRows = filteredRows.filter(r => r.Sector === sector);
+      }
+      if (subSector) {
+        filteredRows = filteredRows.filter(r => r.Sub_Sector === subSector);
+      }
+      
+      const marketCaps = [...new Set(filteredRows.map(r => r.Market_Cap))].filter(Boolean).sort();
+      
+      marketcapSelect.innerHTML = 
+        `<option value="All" selected>All</option>` +
+        marketCaps.map(m => `<option value="${m}">${m}</option>`).join("");
+    }
+
+    function updateMarketCapOptions() {
+      const currentMarketCap = getCurrentMarketCap();
+      populateMarketCapOptions();
+      
+      // Try to maintain selection if still valid
+      const marketcapSelect = document.getElementById("marketcap-select");
+      const options = Array.from(marketcapSelect.options).map(o => o.value);
+      if (currentMarketCap && options.includes(currentMarketCap)) {
+        marketcapSelect.value = currentMarketCap;
+      }
+    }
+
+    // ---------------- EXCEL DOWNLOAD ----------------
+    function downloadExcel() {
+      const wb = XLSX.utils.book_new();
+      const tabContainer = document.getElementById(`tab-${currentTab}`);
+      if (!tabContainer) return;
+
+      const sections = tabContainer.querySelectorAll("section[data-section]");
+
+      sections.forEach(sec => {
+        const titleEl = sec.querySelector("h2");
+        let sheetName = titleEl ? titleEl.innerText.trim() : sec.dataset.section;
+        if (!sheetName) sheetName = "Sheet";
+        if (sheetName.length > 31) {
+          sheetName = sheetName.slice(0, 31);
+        }
+
+        const table = sec.querySelector("table");
+        if (!table) return;
+
+        const headers = Array.from(table.querySelectorAll("thead th"))
+          .map(th => th.innerText.trim());
+
+        const rowsAoA = [headers];
+
+        const tbody = table.querySelector("tbody");
+        Array.from(tbody.querySelectorAll("tr")).forEach(tr => {
+          const cells = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+          if (cells.length) rowsAoA.push(cells);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rowsAoA);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName || "Sheet");
+      });
+
+      XLSX.writeFile(wb, "Broker_Consensus.xlsx");
+    }
+
+    // ---------------- INIT ----------------
+    Papa.parse("dashboard_data.csv?v=" + new Date().getTime(), {
+      download: true,
+      header: true,
+      dynamicTyping: true,
+      complete: function (results) {
+        allRows = results.data.filter(r => r.Company);
+
+        // Populate Sector dropdown
+        const sectors = [...new Set(allRows.map(r => r.Sector))].filter(Boolean).sort();
+        const sectorSelect = document.getElementById("sector-select");
+        sectorSelect.innerHTML =
+          `<option value="All" selected>All</option>` +
+          sectors.map(s => `<option value="${s}">${s}</option>`).join("");
+
+        // Populate Sub-Sector and Market Cap dropdowns
+        populateSubSectorOptions();
+        populateMarketCapOptions();
+
+        setupTabs();
+        setupFilterEvents();
+        document.getElementById("download-excel").addEventListener("click", downloadExcel);
+
+        updatePeriodLabel();
+        renderAll();
+      },
+    });
+  </script>
 </body>
 </html>
+        });
+    }
+
+    function renderGrowthCombined({ sectionId, rows, suffix, filters }) {
+      const body = document.getElementById(sectionId);
+      body.innerHTML = "";
+
+      const revCol = CONFIG.growth.revenue.base + suffix;
+      const ebitdaCol = CONFIG.growth.ebitda.base + suffix;
+      const epsCol = CONFIG.growth.eps.base + suffix;
+
+      rows
+        .filter(r =>
+          passComparator(r[revCol], filters.revenue.op, filters.revenue.threshold) &&
+          passComparator(r[ebitdaCol], filters.ebitda.op, filters.ebitda.threshold) &&
+          passComparator(r[epsCol], filters.eps.op, filters.eps.threshold)
+        )
+        .sort((a, b) => {
+          const aSum = (a[revCol] || 0) + (a[ebitdaCol] || 0) + (a[epsCol] || 0);
+          const bSum = (b[revCol] || 0) + (b[ebitdaCol] || 0) + (b[epsCol] || 0);
+          return bSum - aSum;
+        })
+        .slice(0, 200)
+        .forEach(r => {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/70";
+          tr.innerHTML = `
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="pr-2 py-0.5 text-center">${fmtPct(r[revCol])}</td>
+            <td class="pr-2 py-0.5 text-center">${fmtPct(r[ebitdaCol])}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(r[epsCol])}</td>
+          `;
+          body.appendChild(tr);
+        });
+    }
+
+    // ---------- Valuation ----------
+    function renderValuation() {
+      const sectorRows = getFilteredRows();
+      const periodKey = getCurrentPeriodKey();
+      const suffix = getPeriodSuffix("valuation", periodKey);
+      const filters = getValuationFilterState();
+
+      renderValuationSection({
+        sectionId: "val-pe-body",
+        config: CONFIG.valuation.pe,
+        filter: filters.pe,
+        rows: sectorRows,
+        suffix,
+      });
+
+      renderValuationSection({
+        sectionId: "val-pb-body",
+        config: CONFIG.valuation.pb,
+        filter: filters.pb,
+        rows: sectorRows,
+        suffix,
+      });
+
+      renderValuationSection({
+        sectionId: "val-ps-body",
+        config: CONFIG.valuation.ps,
+        filter: filters.ps,
+        rows: sectorRows,
+        suffix,
+      });
+
+      renderValCombined({
+        sectionId: "val-combined-body",
+        rows: sectorRows,
+        suffix,
+        filters,
+      });
+    }
+
+    function renderValuationSection({ sectionId, config, filter, rows, suffix }) {
+      const body = document.getElementById(sectionId);
+      body.innerHTML = "";
+
+      const metricCol = config.base + suffix;
+      const medCol = "Sector_Med_" + metricCol;
+
+      rows
+        .filter(r => passComparator(r[metricCol], filter.op, filter.threshold))
+        .sort((a, b) => (a[metricCol] || 0) - (b[metricCol] || 0))
+        .slice(0, 200)
+        .forEach(r => {
+          const value = r[metricCol];
+          const med = r[medCol];
+          const diff = (typeof value === "number" && typeof med === "number")
+            ? value - med
+            : null;
+
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/70";
+          tr.innerHTML = `
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(value)}</td>
+            <td class="pr-2 py-0.5 text-center text-slate-300">${fmtNum(med)}</td>
+            <td class="pr-2 py-0.5 text-center ${
+              diff > 0 ? "text-rose-400" :
+              diff < 0 ? "text-emerald-400" : "text-slate-300"
+            }">${diff == null ? "" : fmtNum(diff)}</td>
+          `;
+          body.appendChild(tr);
+        });
+    }
+
+    function renderValCombined({ sectionId, rows, suffix, filters }) {
+      const body = document.getElementById(sectionId);
+      body.innerHTML = "";
+
+      const peCol = CONFIG.valuation.pe.base + suffix;
+      const pbCol = CONFIG.valuation.pb.base + suffix;
+      const psCol = CONFIG.valuation.ps.base + suffix;
+
+      rows
+        .filter(r =>
+          passComparator(r[peCol], filters.pe.op, filters.pe.threshold) &&
+          passComparator(r[pbCol], filters.pb.op, filters.pb.threshold) &&
+          passComparator(r[psCol], filters.ps.op, filters.ps.threshold)
+        )
+        .sort((a, b) => {
+          const aSum = (a[peCol] || 0) + (a[pbCol] || 0) + (a[psCol] || 0);
+          const bSum = (b[peCol] || 0) + (b[pbCol] || 0) + (b[psCol] || 0);
+          return aSum - bSum;
+        })
+        .slice(0, 200)
+        .forEach(r => {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/70";
+          tr.innerHTML = `
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="pr-2 py-0.5 text-center">${fmtNum(r[peCol])}</td>
+            <td class="pr-2 py-0.5 text-center">${fmtNum(r[pbCol])}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(r[psCol])}</td>
+          `;
+          body.appendChild(tr);
+        });
+    }
+
+    // ---------- Margin ----------
+    function renderMargin() {
+      const sectorRows = getFilteredRows();
+      const periodKey = getCurrentPeriodKey();
+      const suffix = getPeriodSuffix("margin", periodKey);
+      const filters = getMarginFilterState();
+
+      renderMarginSection({
+        sectionId: "margin-ebitda-body",
+        config: CONFIG.margin.ebitda,
+        filter: filters.ebitda,
+        rows: sectorRows,
+        suffix,
+      });
+
+      renderMarginSection({
+        sectionId: "margin-pat-body",
+        config: CONFIG.margin.pat,
+        filter: filters.pat,
+        rows: sectorRows,
+        suffix,
+      });
+
+      renderMarginCombined({
+        sectionId: "margin-combined-body",
+        rows: sectorRows,
+        suffix,
+        filters,
+      });
+    }
+
+    function renderMarginSection({ sectionId, config, filter, rows, suffix }) {
+  const body = document.getElementById(sectionId);
+  body.innerHTML = "";
+
+  // Default metricCol from CONFIG
+  let metricCol = config.base + suffix;   // e.g. EBITDA_MExp_FY1
+
+  // For 3-Year, use the CAGR columns created in Python:
+  // EBITDA_Margin_CAGR3 and PAT_Margin_CAGR3
+  if (suffix === "CAGR3") {
+    if (config.base === "EBITDA_MExp_") {
+      metricCol = "EBITDA_Margin_CAGR3";
+    } else if (config.base === "PAT_MExp_") {
+      metricCol = "PAT_Margin_CAGR3";
+    }
+  }
+
+  const medCol = "Sector_Med_" + metricCol;
+
+  rows
+    .filter(r => passComparator(r[metricCol], filter.op, filter.threshold))
+    .sort((a, b) => (b[metricCol] || 0) - (a[metricCol] || 0))
+    .slice(0, 200)
+    .forEach(r => {
+      const value = r[metricCol];
+      const med = r[medCol];
+      const diff = (typeof value === "number" && typeof med === "number")
+        ? value - med
+        : null;
+
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-800/70";
+      tr.innerHTML = `
+        <td class="pr-2 py-0.5">${r.Company}</td>
+        <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(value)}</td>
+        <td class="pr-2 py-0.5 text-center text-slate-300">${fmtPct(med)}</td>
+        <td class="pr-2 py-0.5 text-center ${
+          diff > 0 ? "text-emerald-400" :
+          diff < 0 ? "text-rose-400" : "text-slate-300"
+        }">${diff == null ? "" : fmtPct(diff)}</td>
+      `;
+      body.appendChild(tr);
+    });
+}
+
+    function renderMarginCombined({ sectionId, rows, suffix, filters }) {
+  const body = document.getElementById(sectionId);
+  body.innerHTML = "";
+
+  // Default cols from CONFIG
+  let ebitdaCol = CONFIG.margin.ebitda.base + suffix; // EBITDA_MExp_FY1
+  let patCol    = CONFIG.margin.pat.base + suffix;    // PAT_MExp_FY1
+
+  // For 3-Year, switch to the CAGR margin columns
+  if (suffix === "CAGR3") {
+    ebitdaCol = "EBITDA_Margin_CAGR3";
+    patCol    = "PAT_Margin_CAGR3";
+  }
+
+  rows
+    .filter(r =>
+      passComparator(r[ebitdaCol], filters.ebitda.op, filters.ebitda.threshold) &&
+      passComparator(r[patCol],    filters.pat.op,    filters.pat.threshold)
+    )
+    .sort((a, b) => {
+      const aSum = (a[ebitdaCol] || 0) + (a[patCol] || 0);
+      const bSum = (b[ebitdaCol] || 0) + (b[patCol] || 0);
+      return bSum - aSum;
+    })
+    .slice(0, 200)
+    .forEach(r => {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-800/70";
+      tr.innerHTML = `
+        <td class="pr-2 py-0.5">${r.Company}</td>
+        <td class="pr-2 py-0.5 text-center">${fmtPct(r[ebitdaCol])}</td>
+        <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(r[patCol])}</td>
+      `;
+      body.appendChild(tr);
