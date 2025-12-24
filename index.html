@@ -638,17 +638,17 @@
 
     // Get filtered rows based on Sector, Sub-Sector, and Market Cap
     function getFilteredRows() {
+      const marketCap = getCurrentMarketCap();
       const sector = getCurrentSector();
       const subSector = getCurrentSubSector();
-      const marketCap = getCurrentMarketCap();
 
       return allRows.filter(r => {
+        // Filter by Market Cap
+        if (marketCap && r.Market_Cap !== marketCap) return false;
         // Filter by Sector
         if (sector && r.Sector !== sector) return false;
         // Filter by Sub-Sector
         if (subSector && r.Sub_Sector !== subSector) return false;
-        // Filter by Market Cap
-        if (marketCap && r.Market_Cap !== marketCap) return false;
         return true;
       });
     }
@@ -1343,6 +1343,13 @@
         // Build sector-subsector mapping
         buildSectorSubSectorMapping();
 
+        // Populate Market Cap dropdown
+        const marketCaps = [...new Set(allRows.map(r => r.Market_Cap))].filter(Boolean).sort();
+        const marketCapSelect = document.getElementById("marketcap-select");
+        marketCapSelect.innerHTML =
+          `<option value="All" selected>All</option>` +
+          marketCaps.map(m => `<option value="${m}">${m}</option>`).join("");
+        
         // Populate Sector dropdown
         const sectors = [...new Set(allRows.map(r => r.Sector))].filter(Boolean).sort();
         const sectorSelect = document.getElementById("sector-select");
@@ -1352,13 +1359,6 @@
 
         // Populate Sub-Sector dropdown (initially all)
         updateSubSectorDropdown();
-
-        // Populate Market Cap dropdown
-        const marketCaps = [...new Set(allRows.map(r => r.Market_Cap))].filter(Boolean).sort();
-        const marketCapSelect = document.getElementById("marketcap-select");
-        marketCapSelect.innerHTML =
-          `<option value="All" selected>All</option>` +
-          marketCaps.map(m => `<option value="${m}">${m}</option>`).join("");
 
         setupTabs();
         setupFilterEvents();
@@ -1371,6 +1371,7 @@
   </script>
 </body>
 </html>
+
 
 
 
