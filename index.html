@@ -39,6 +39,16 @@
 
     <!-- Top controls: Sector + Sub-Sector + Market Cap + Period + Download button -->
     <div class="mb-4 flex flex-wrap items-center gap-3 text-xs">
+      
+      <!-- Market Cap -->
+      <div class="text-sm flex items-center gap-2">
+        <span class="text-slate-300">Market Cap:</span>
+        <select
+          id="marketcap-select"
+          class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
+        ></select>
+      </div>
+      
       <!-- Sector -->
       <div class="text-sm flex items-center gap-2">
         <span class="text-slate-300">Sector:</span>
@@ -53,15 +63,6 @@
         <span class="text-slate-300">Sub-Sector:</span>
         <select
           id="subsector-select"
-          class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
-        ></select>
-      </div>
-
-      <!-- Market Cap -->
-      <div class="text-sm flex items-center gap-2">
-        <span class="text-slate-300">Market Cap:</span>
-        <select
-          id="marketcap-select"
           class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
         ></select>
       </div>
@@ -1370,6 +1371,7 @@
   </script>
 </body>
 </html>
+
 
 
 
