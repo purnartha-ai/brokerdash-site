@@ -274,7 +274,7 @@
         Defaults: PE ≤ 30, P/B ≤ 5, P/S ≤ 5.
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 text-xs">
         <!-- PE -->
         <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
                  data-section="valuation-pe">
@@ -376,6 +376,30 @@
             </table>
           </div>
         </section>
+
+        <!-- Valuation Summary -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="valuation-summary">
+          <h2 class="text-lg font-semibold mb-2">Valuation Summary</h2>
+
+          <div class="mb-3 text-xs text-slate-400">
+            Companies passing all three filters above.
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">PE</th>
+                  <th class="pr-2 text-center">P/B</th>
+                  <th class="pr-2 text-center">P/S</th>
+                </tr>
+              </thead>
+              <tbody id="val-summary-body"></tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -387,7 +411,7 @@
         Defaults: EBITDA ≥ 2%, PAT ≥ 2%.
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
         <!-- EBITDA Margin Expansion -->
         <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
                  data-section="margin-ebitda">
@@ -457,6 +481,29 @@
             </table>
           </div>
         </section>
+
+        <!-- Margin Summary -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+                 data-section="margin-summary">
+          <h2 class="text-lg font-semibold mb-2">Margin Summary</h2>
+
+          <div class="mb-3 text-xs text-slate-400">
+            Companies passing both filters above.
+          </div>
+
+          <div class="overflow-auto flex-1">
+            <table class="min-w-full text-left border-separate border-spacing-y-1">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="pr-2">Company</th>
+                  <th class="pr-2 text-center">EBITDA Exp</th>
+                  <th class="pr-2 text-center">PAT Exp</th>
+                </tr>
+              </thead>
+              <tbody id="margin-summary-body"></tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -514,11 +561,23 @@
     // ---------------- HELPERS ----------------
     function fmtNum(val) {
       if (val == null || isNaN(val)) return "–";
-      return val.toFixed(2);
+      return val.toFixed(1);
     }
     function fmtPct(val) {
       if (val == null || isNaN(val)) return "–";
-      return val.toFixed(2) + "%";
+      return val.toFixed(1) + "%";
+    }
+    
+    // Color coding for diff values
+    function getColorClass(val, isValuationTab = false) {
+      if (val == null || isNaN(val)) return "";
+      if (isValuationTab) {
+        // Valuation: negative is good (green), positive is bad (red)
+        return val < 0 ? "text-green-400" : val > 0 ? "text-red-400" : "";
+      } else {
+        // Growth/Margin: positive is good (green), negative is bad (red)
+        return val > 0 ? "text-green-400" : val < 0 ? "text-red-400" : "";
+      }
     }
 
     function passComparator(value, op, threshold) {
@@ -745,7 +804,7 @@
             <td class="pr-2 py-0.5">${r.Company}</td>
             <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(val)}</td>
             <td class="pr-2 py-0.5 text-center">${fmtPct(med)}</td>
-            <td class="pr-2 py-0.5 text-center">${fmtPct(diff)}</td>
+            <td class="pr-2 py-0.5 text-center ${getColorClass(diff)}">${fmtPct(diff)}</td>
           `;
           revBody.appendChild(tr);
         });
@@ -767,7 +826,7 @@
             <td class="pr-2 py-0.5">${r.Company}</td>
             <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(val)}</td>
             <td class="pr-2 py-0.5 text-center">${fmtPct(med)}</td>
-            <td class="pr-2 py-0.5 text-center">${fmtPct(diff)}</td>
+            <td class="pr-2 py-0.5 text-center ${getColorClass(diff)}">${fmtPct(diff)}</td>
           `;
           ebitdaBody.appendChild(tr);
         });
@@ -789,7 +848,7 @@
             <td class="pr-2 py-0.5">${r.Company}</td>
             <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(val)}</td>
             <td class="pr-2 py-0.5 text-center">${fmtPct(med)}</td>
-            <td class="pr-2 py-0.5 text-center">${fmtPct(diff)}</td>
+            <td class="pr-2 py-0.5 text-center ${getColorClass(diff)}">${fmtPct(diff)}</td>
           `;
           epsBody.appendChild(tr);
         });
@@ -888,7 +947,7 @@
             <td class="pr-2 py-0.5">${r.Company}</td>
             <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(val)}</td>
             <td class="pr-2 py-0.5 text-center">${fmtNum(med)}</td>
-            <td class="pr-2 py-0.5 text-center">${fmtNum(diff)}</td>
+            <td class="pr-2 py-0.5 text-center ${getColorClass(diff, true)}">${fmtNum(diff)}</td>
           `;
           peBody.appendChild(tr);
         });
@@ -910,7 +969,7 @@
             <td class="pr-2 py-0.5">${r.Company}</td>
             <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(val)}</td>
             <td class="pr-2 py-0.5 text-center">${fmtNum(med)}</td>
-            <td class="pr-2 py-0.5 text-center">${fmtNum(diff)}</td>
+            <td class="pr-2 py-0.5 text-center ${getColorClass(diff, true)}">${fmtNum(diff)}</td>
           `;
           pbBody.appendChild(tr);
         });
@@ -932,9 +991,36 @@
             <td class="pr-2 py-0.5">${r.Company}</td>
             <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(val)}</td>
             <td class="pr-2 py-0.5 text-center">${fmtNum(med)}</td>
-            <td class="pr-2 py-0.5 text-center">${fmtNum(diff)}</td>
+            <td class="pr-2 py-0.5 text-center ${getColorClass(diff, true)}">${fmtNum(diff)}</td>
           `;
           psBody.appendChild(tr);
+        });
+
+      // Valuation Summary
+      const summaryBody = document.getElementById("val-summary-body");
+      summaryBody.innerHTML = "";
+      rows
+        .filter(r =>
+          passComparator(r[peCol], filters.pe.op, filters.pe.threshold) &&
+          passComparator(r[pbCol], filters.pb.op, filters.pb.threshold) &&
+          passComparator(r[psCol], filters.ps.op, filters.ps.threshold)
+        )
+        .sort((a, b) => {
+          const aSum = (a[peCol] || 999) + (a[pbCol] || 999) + (a[psCol] || 999);
+          const bSum = (b[peCol] || 999) + (b[pbCol] || 999) + (b[psCol] || 999);
+          return aSum - bSum;
+        })
+        .slice(0, 200)
+        .forEach(r => {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/70";
+          tr.innerHTML = `
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(r[peCol])}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(r[pbCol])}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtNum(r[psCol])}</td>
+          `;
+          summaryBody.appendChild(tr);
         });
     }
 
@@ -997,7 +1083,7 @@
             <td class="pr-2 py-0.5">${r.Company}</td>
             <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(val)}</td>
             <td class="pr-2 py-0.5 text-center">${fmtPct(med)}</td>
-            <td class="pr-2 py-0.5 text-center">${fmtPct(diff)}</td>
+            <td class="pr-2 py-0.5 text-center ${getColorClass(diff)}">${fmtPct(diff)}</td>
           `;
           ebitdaBody.appendChild(tr);
         });
@@ -1017,9 +1103,34 @@
             <td class="pr-2 py-0.5">${r.Company}</td>
             <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(val)}</td>
             <td class="pr-2 py-0.5 text-center">${fmtPct(med)}</td>
-            <td class="pr-2 py-0.5 text-center">${fmtPct(diff)}</td>
+            <td class="pr-2 py-0.5 text-center ${getColorClass(diff)}">${fmtPct(diff)}</td>
           `;
           patBody.appendChild(tr);
+        });
+
+      // Margin Summary
+      const summaryBody = document.getElementById("margin-summary-body");
+      summaryBody.innerHTML = "";
+      rows
+        .filter(r =>
+          passComparator(r[ebitdaCol], filters.ebitda.op, filters.ebitda.threshold) &&
+          passComparator(r[patCol], filters.pat.op, filters.pat.threshold)
+        )
+        .sort((a, b) => {
+          const aSum = (a[ebitdaCol] || 0) + (a[patCol] || 0);
+          const bSum = (b[ebitdaCol] || 0) + (b[patCol] || 0);
+          return bSum - aSum;
+        })
+        .slice(0, 200)
+        .forEach(r => {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/70";
+          tr.innerHTML = `
+            <td class="pr-2 py-0.5">${r.Company}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(r[ebitdaCol])}</td>
+            <td class="pr-2 py-0.5 text-center font-medium">${fmtPct(r[patCol])}</td>
+          `;
+          summaryBody.appendChild(tr);
         });
     }
 
